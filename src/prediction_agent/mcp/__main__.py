@@ -2,7 +2,11 @@ import sys
 
 from mcp.server import MCPServer
 
+from prediction_agent.pokeapi.mcp.stats import register_pokeapi_stats
+
 app = MCPServer(name="prediction-agent")
+
+_ = register_pokeapi_stats(app)
 
 def main():
     try:
