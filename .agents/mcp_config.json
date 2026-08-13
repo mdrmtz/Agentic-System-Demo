@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "prediction-agent": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/ppak/GitHub/Agentic-System-Demo",
+        "python",
+        "-m",
+        "prediction_agent.mcp"
+      ]
+    }
+  }
+}

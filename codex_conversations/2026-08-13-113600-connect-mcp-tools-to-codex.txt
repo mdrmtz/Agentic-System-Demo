@@ -1,0 +1,22 @@
+User: Can you take a look at this repository and connect the mcp tools to codex for me please?
+
+Codex: Inspected the repository and found its existing stdio MCP server definition:
+
+  Name: prediction-agent
+  Command: uv run --directory /Users/ppak/GitHub/Agentic-System-Demo python -m prediction_agent.mcp
+
+Registered it globally for Codex with:
+
+  codex mcp add prediction-agent -- uv run --directory /Users/ppak/GitHub/Agentic-System-Demo python -m prediction_agent.mcp
+
+Verification:
+
+  - `codex mcp list` showed `prediction-agent` enabled.
+  - `codex mcp get prediction-agent` confirmed stdio transport and the expected command.
+  - Imported `prediction_agent.mcp.__main__` successfully; app name: prediction-agent.
+
+No repository files were changed. A new Codex session is needed for the `pokeapi_stats` tool to become available.
+
+User: Can you export this conversation to codex_conversations please?
+
+Codex: Exported this transcript to this file.
