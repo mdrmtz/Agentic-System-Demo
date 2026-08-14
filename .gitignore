@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Prediction-agent GUI (Vite/React web app)
+src/prediction_agent/gui/web/node_modules/
+src/prediction_agent/gui/web/tsconfig.tsbuildinfo
+# NOTE: src/prediction_agent/data/gui/ (the built bundle) is intentionally
+# committed so the GUI runs after `uv sync` without needing npm.
+
+# GUI runtime workspace (watched dir: bundle copy, snapshots, agent outputs)
+/gui-workspace/

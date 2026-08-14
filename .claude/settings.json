@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "statusMessage": "Spinning up prediction-agent GUI…",
+            "command": "PD=\"${CLAUDE_PROJECT_DIR:-/Users/ppak/GitHub/Agentic-System-Demo}\"; jq -r '.prompt // empty' | grep -iqE 'pok[eé]mon|pok[eé]api|pikachu|prediction[ _-]?agent' && uv run --directory \"$PD\" python -m prediction_agent.gui \"$PD/gui-workspace\" >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 20,
+            "statusMessage": "Spinning down prediction-agent GUI…",
+            "command": "PD=\"${CLAUDE_PROJECT_DIR:-/Users/ppak/GitHub/Agentic-System-Demo}\"; uv run --directory \"$PD\" python -m prediction_agent.gui \"$PD/gui-workspace\" --stop >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}

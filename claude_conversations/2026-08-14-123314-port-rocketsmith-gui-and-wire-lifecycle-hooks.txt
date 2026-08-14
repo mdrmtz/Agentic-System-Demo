@@ -1,0 +1,163 @@
+╭─── Claude Code v2.1.211 ─────────────────────────────────────────────────────╮
+│                                                    │ Session summary         │
+│                 Welcome back Peter!                │ Ported the RocketSmith  │
+│                       ▐▛███▜▌                      │ GUI into the prediction │
+│                      ▝▜█████▛▘                     │ agent, stripped it to   │
+│                        ▘▘ ▝▝                       │ barebones, and wired    │
+│     Opus 4.8 · Claude Max · ppak10@gmail.com's     │ Claude Code hooks to    │
+│     Organization                                   │ spin the GUI up/down    │
+│            ~/GitHub/Agentic-System-Demo            │ per conversation.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Date: 2026-08-14
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ TURN 1 — Copy over the RocketSmith GUI, simplified to barebones
+═══════════════════════════════════════════════════════════════════════════════
+
+❯ Let's go ahead and take a look at ../RocketSmith and copy over the GUI. For
+  this let's just simplify it to the barebones so we can get this up and running
+  for our prediction agent system. What are your thoughts here?
+
+⏺ Explored both repos. RocketSmith's GUI is a clean, domain-agnostic pattern
+  under the rocket-specific panels:
+
+    1. Python "event bus" backend (gui/)
+       - watcher.py  : polls project dir for mtime changes, classifies, emits
+       - server.py   : aiohttp — serves built React bundle, WebSocket push, REST
+       - log.py      : appends structured entries to gui/logs/session.jsonl
+       - layout.py   : canonical output-path constants
+       - lifecycle.py: start/stop, PID files, opens browser
+       Elegant idea: agents/tools just WRITE FILES; the GUI reacts.
+
+    2. React shell (gui/web/, Vite + React 19 + Tailwind v4 + shadcn)
+       - Agent Feed + Session Log map perfectly onto the prediction agent
+
+    3. Rocket-specific panels (the weight, all droppable): three.js STEP/STL
+       viewers, recharts flight charts, assembly/part/component viewers.
+
+  Recommended barebones: keep the engine + shell, drop everything rocket, and
+  rewire watcher classifications from step/stl/flight → data/prediction/report.
+
+  Asked two scoping questions:
+    • UI scope        → "Feed + Log + FileViewer" (drop draggable cards / 3D)
+    • Frontend build  → "Full Vite pipeline"
+
+⏺ Implementation:
+
+  Python backend  src/prediction_agent/gui/
+    - Copied the 5 engine files, renamed rocketsmith → prediction_agent
+    - Rewrote layout.py: DATA_DIR=data, PREDICTIONS_DIR=predictions,
+      REPORTS_DIR=reports, LOGS_DIR=gui/logs
+    - Rewrote watcher.py classifications:
+        data/ → data, predictions/ → prediction, reports/ → report, gui/logs → log
+    - server.py: _VISIBLE_DIRS = {data, predictions, reports, gui}; dropped STL/binary
+    - Added __main__.py launcher:  python -m prediction_agent.gui [DIR] [--stop]
+
+  Frontend  src/prediction_agent/gui/web/
+    - Copied web app (minus node_modules), deleted rocket panels/components/hooks
+    - Trimmed package.json: dropped three, @react-three/*, recharts, @dnd-kit/*
+      → 127 npm packages (was hundreds), 407 KB bundle (was multi-MB)
+    - Rewrote App.tsx (feed + /files route), Dashboard.tsx (branding + file tree),
+      ActiveView.tsx (simple responsive card grid, no dnd-kit), SessionLogCard,
+      useWatchSocket types, index.html title/favicon
+
+  Packaging
+    - Added aiohttp dependency; added [build-system] + setuptools src config so the
+      editable install reinstalls and picks up the new gui subpackage
+    - gitignored web/node_modules; kept built bundle committed under data/gui/
+
+  Verified end-to-end
+    ✓ Python imports + path classification
+    ✓ npm run build — clean TypeScript, no dead imports
+    ✓ Ran server, connected WebSocket, wrote data/pikachu.json +
+      predictions/battle.json → both streamed live
+    ✓ index.html file:// transforms + offline data.js/files-tree.json snapshots
+    ⚠ Not visually screenshotted — Chrome extension not set up this session
+
+  Thoughts / next steps offered: a purpose-built Prediction card (winner +
+  confidence bar), and wiring the PokéAPI MCP tool to write into data/.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ TURN 2 — Wire hooks to spin the GUI up/down for pokemon-related conversations
+═══════════════════════════════════════════════════════════════════════════════
+
+❯ Let's go ahead and wire this up with the necesary hooks to spin up and spin
+  down the gui when a conversation starts regarding pokemon / predication agent
+  related conversations.
+
+⏺ Used the update-config skill (hooks live in settings.json).
+
+  Design:
+    • Spin UP  → UserPromptSubmit hook (async), gated by a keyword grep on the
+      prompt. Idempotent: start_gui_server reuses a healthy server, so only the
+      first matching prompt opens a browser.
+    • Spin DOWN → SessionEnd hook running the launcher's --stop.
+
+  Key constraint that forced a design choice: the watcher does a full os.walk of
+  the watched dir every second. Pointing it at the repo root would crawl
+  node_modules (130 MB) + all of src/ — unusable. So the GUI watches a dedicated,
+  gitignored gui-workspace/ dir, which is also where the agent writes its
+  data/ / predictions/ / reports/.
+
+  Steps:
+    - Created gui-workspace/{data,predictions,reports}; gitignored /gui-workspace/
+    - Pipe-tested the keyword gate:
+        pok[eé]mon | pok[eé]api | pikachu | prediction[ _-]?agent   (case-insensitive)
+        MATCH:  "pikachu stats", "pokemon base stats", "prediction-agent MCP",
+                "pokéapi call"
+        NOMATCH:"refactor the auth module"
+    - Verified launcher: start → :24880, idempotent re-run "reused existing"
+      (no 2nd browser), --stop → API down
+    - Wrote hooks to .claude/settings.json (new, project-scoped), commands use
+      ${CLAUDE_PROJECT_DIR:-<abs path>} for portability
+
+  Hooks written:
+
+    UserPromptSubmit (async):
+      PD="${CLAUDE_PROJECT_DIR:-/Users/ppak/GitHub/Agentic-System-Demo}";
+      jq -r '.prompt // empty'
+        | grep -iqE 'pok[eé]mon|pok[eé]api|pikachu|prediction[ _-]?agent'
+        && uv run --directory "$PD" python -m prediction_agent.gui "$PD/gui-workspace"
+           >/dev/null 2>&1 || true
+
+    SessionEnd (timeout 20):
+      PD="${CLAUDE_PROJECT_DIR:-/Users/ppak/GitHub/Agentic-System-Demo}";
+      uv run --directory "$PD" python -m prediction_agent.gui "$PD/gui-workspace"
+        --stop >/dev/null 2>&1 || true
+
+  Verified using the exact commands extracted from settings.json:
+    ✓ JSON valid; both commands extract via jq -e
+    ✓ Matching prompt ("pikachu stats please") → GUI came up on :24880
+    ✓ SessionEnd command → GUI stopped
+    ✓ Non-matching prompt ("refactor the parser") → stayed down
+
+  Documented the auto start/stop in README.
+
+  Action left to the user: project-defined hooks require approval — open /hooks
+  once to review + enable (also reloads the new settings.json).
+
+  Caveat flagged: if a terminal is killed abruptly, SessionEnd may not fire and a
+  server can linger (harmless — next matching prompt reuses it). Offered an
+  optional SessionStart cleanup.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ FILES CHANGED
+═══════════════════════════════════════════════════════════════════════════════
+
+  M  .gitignore                 (ignore web/node_modules, tsbuildinfo, gui-workspace/)
+  M  README.md                  (GUI section: run, hooks, gui_log)
+  M  pyproject.toml             (+aiohttp, [build-system], setuptools src config)
+  M  uv.lock
+  ??  .claude/settings.json      (UserPromptSubmit + SessionEnd hooks)
+  ??  src/prediction_agent/__init__.py
+  ??  src/prediction_agent/gui/  (backend: server/watcher/log/layout/lifecycle/__main__)
+  ??  src/prediction_agent/gui/web/          (trimmed Vite/React app)
+  ??  src/prediction_agent/data/gui/         (committed built bundle: index.html + main.js)
+  --  gui-workspace/             (gitignored runtime workspace, watched dir)
+
+  Run:  uv run python -m prediction_agent.gui .
+  (or let the hooks do it on the next pokemon / prediction-agent prompt)
