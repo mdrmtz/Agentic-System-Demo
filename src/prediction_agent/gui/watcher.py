@@ -69,13 +69,18 @@ def _classify(path: Path, root: Path) -> str:
     try:
         rel = str(path.relative_to(root))
     except ValueError:
-        return _EXT_MAP.get(path.suffix.lower(), "unknown")
+        return "unknown"
 
     for prefix, event_type in _PREFIX_MAP:
         if rel.startswith(prefix + "/") or rel == prefix:
+            # Apply extension filter within known dirs for clarity.
             return event_type
 
-    return _EXT_MAP.get(path.suffix.lower(), "unknown")
+    # Only classify root-level files by extension; ignore files in other dirs.
+    if "/" not in rel:
+        return _EXT_MAP.get(path.suffix.lower(), "unknown")
+
+    return "unknown"
 
 
 def _is_text_file(path: Path) -> bool:

@@ -1,11 +1,6 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { fetchText, fetchTextFromApi } from "@/lib/server";
 import { useEffect, useState } from "react";
-import { fetchText } from "@/lib/server";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
 
 interface FileViewerProps {
   file: string;
@@ -20,7 +15,8 @@ export function FileViewer({ file }: FileViewerProps) {
     setError(false);
 
     fetchText(file)
-      .then((text) => {
+      .then(async (text) => {
+        if (text === null) text = await fetchTextFromApi(file);
         if (text !== null) setContent(text);
         else setError(true);
       })

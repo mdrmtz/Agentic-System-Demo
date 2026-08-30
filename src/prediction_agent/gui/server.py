@@ -24,6 +24,17 @@ _VISIBLE_DIRS = {
 }
 _VISIBLE_ROOT_FILES: set[str] = set()
 
+# Filenames excluded everywhere in the tree (node config, lock files, etc.).
+_EXCLUDED_NAMES = {
+    "node_modules",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "tsconfig.tsbuildinfo",
+    "postcss.config.mjs",
+    "vite.config.ts",
+}
+
 FILES_TREE_FILE = "gui/files-tree.json"
 
 
@@ -36,6 +47,8 @@ def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
         return entries
     for item in items:
         if item.name.startswith("."):
+            continue
+        if item.name in _EXCLUDED_NAMES:
             continue
         # At the top level, only show whitelisted folders and files.
         if not rel_prefix:
@@ -79,6 +92,8 @@ def write_files_tree_snapshot(project_dir: Path) -> None:
 _TEXT_EXTENSIONS = {
     ".json",
     ".jsonl",
+    ".js",
+    ".ts",
     ".md",
     ".py",
     ".csv",
@@ -207,10 +222,19 @@ async def _cors_middleware(request: web.Request, handler):
     return response
 
 
+async def _index_handler(request: web.Request) -> web.Response:
+    project_dir: Path = request.app["project_dir"]
+    index = project_dir / "index.html"
+    if index.is_file():
+        return web.FileResponse(index)
+    return web.Response(status=404, text="index.html not found")
+
+
 def _build_app(project_dir: Path) -> web.Application:
     app = web.Application(middlewares=[_cors_middleware])
     app["project_dir"] = project_dir
     app["ws_clients"] = set()
+    app.router.add_get("/", _index_handler)
     app.router.add_get("/ws", _ws_handler)
     app.router.add_get("/api/project-info", _project_info_handler)
     app.router.add_get("/api/files/{path:.*}", _project_file_handler)
