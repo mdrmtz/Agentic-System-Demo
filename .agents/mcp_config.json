@@ -4,8 +4,7 @@
       "command": "uv",
       "args": [
         "run",
-        "--directory",
-        "/Users/ppak/GitHub/Agentic-System-Demo",
+        "--directory", "."
         "python",
         "-m",
         "prediction_agent.mcp"
